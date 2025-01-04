@@ -213,23 +213,41 @@ where demand_category = "Most Demand";
 -- 6. Repeat Passenger Frequency and City Contribution Analysis
 
 with main_table as (
-		with cte as (
-		select 
-			trip_id, ft.date as dates, ft.city_id, passenger_type, distance_travelled_km, fare_amount, passenger_rating, driver_rating, city_name,famous_for
-		from fact_trips ft
-		left join dim_city dc
-		on ft.city_id = dc.city_id
-	)
-		select
-			city_name, famous_for,
-			count(trip_id) as frequency_of_trips
-		from cte
-		where passenger_type = 'repeated'
-		group by city_name, famous_for
+with cte1 as (
+select 
+	city_name, trip_count, famous_for, sum(repeat_passenger_count) as sum_repeat_passengers
+from dim_repeat_trip_distribution drtd
+join dim_city dc on drtd.city_id = dc.city_id
+group by city_name, trip_count, famous_for
+),
+cte2 as (
+select 
+	city_name, trip_count, famous_for,
+	sum(sum_repeat_passengers) over(partition by city_name)  as total_passengers
+from cte1
 )
-select *
-from main_table
-order by frequency_of_trips desc; -- Insight: Most of the Tourism-Focused cities are at the behind of the Business-Focused cities, by higher trip frequencies of the repeated passengers. 
+select 
+	cte1.city_name, cte1.trip_count, cte1.famous_for,
+	round((sum_repeat_passengers/total_passengers)*100,2) as p_distribution
+from cte1 
+join cte2 on cte1.city_name = cte2.city_name and cte1.trip_count = cte2.trip_count and cte1.famous_for = cte2.famous_for
+)
+
+select
+city_name,
+famous_for,
+    concat(sum(case when trip_count = '2-Trips' then p_distribution else null end),'%') as'2 Trips',
+    concat(sum(case when trip_count = '3-Trips' then p_distribution else null end),'%') as '3 Trips',
+    concat(sum(case when trip_count = '4-Trips' then p_distribution else null end),'%') as '4 Trips',
+    concat(sum(case when trip_count = '5-Trips' then p_distribution else null end),'%') as '5 Trips',
+    concat(sum(case when trip_count = '6-Trips' then p_distribution else null end),'%') as '6 Trips',
+    concat(sum(case when trip_count = '7-Trips' then p_distribution else null end),'%') as '7 Trips',
+    concat(sum(case when trip_count = '8-Trips' then p_distribution else null end),'%') as '8 Trips',
+    concat(sum(case when trip_count = '9-Trips' then p_distribution else null end),'%') as '9 Trips',
+    concat(sum(case when trip_count = '10-Trips' then p_distribution else null end),'%') as '10 Trips'
+FROM main_table
+GROUP BY city_name, famous_for
+ORDER BY city_name DESC;
 
 
 -- --------------------------------------------------------------------------------------------------------------------------------------------------
@@ -260,6 +278,32 @@ select
 from cte
 group by city_name, month_name, total_target_trips;
 
+-- Monthly total new passengers achieved Vs. Monthly targeted new passengers, by city and month
+
+with cte as (
+	with t1 as (
+		select 
+			ft.*, city_name, month_name, start_of_month
+		from fact_trips ft
+		left join dim_city dc on ft.city_id = dc.city_id
+		left join dim_date dd on ft.date = dd.date
+        where passenger_type = "new"
+	),
+	t2 as (
+	select * from targets_db.monthly_target_new_passengers
+	)
+	select t1.*, t2.target_new_passengers
+	from t1 left join t2 
+	on t1.start_of_month = t2.month and t1.city_id = t2.city_id
+)
+select 
+	city_name,
+    month_name,
+    count(passenger_type) as monthly_new_passengers,
+    target_new_passengers as monthly_targeted_new_passengers
+from cte
+group by city_name, month_name, target_new_passengers;
+
 -- New Passengers Vs. Average Passengers target ratings by Cities
 
 with cte as (
@@ -286,10 +330,64 @@ select
 from cte
 where passenger_type = 'new'
 group by city_name, avg_target_rating
-order by avg_rating_achieved desc; -- Insight: In each city New Passenger's average rating meets with average rating target
-
--- Target Analysis 
+order by avg_rating_achieved desc; 
 
 
+-- --------------------------------------------------------------------------------------------------------------------------------------------------
+
+-- 8. Highest and Lowest Repeat Passenger Rate (RPR%) by City and Month
+
+-- Analyse the Repeat Passenger Rate (RPR%) for each city across the six- month period. Identify the top 2 and bottom 2 cities based on their RPR% to determine which locations have the strongest and weakest rates.
+
+with main_table as (
+with total_passengers as (
+	select 
+		city_name,
+		sum(repeat_passengers) total_rp,
+        sum(total_passengers) total_p
+    from fact_passenger_summary fps
+    join dim_city dc on fps.city_id = dc.city_id
+    group by city_name
+)
+select
+	city_name,
+	total_rp as total_repeated_passengers,
+    total_p as total_passengers,
+	concat(round((total_rp/total_p)*100,2),"%") as RPR,
+    dense_rank() over(order by round((total_rp/total_p)*100,2) asc) as asc_rank,
+    dense_rank() over(order by round((total_rp/total_p)*100,2) desc) as dsc_rank
+from total_passengers
+)
+select city_name, total_repeated_passengers, total_passengers, RPR, concat('Bottom- ',asc_rank) as rank_category from main_table where asc_rank <= 2
+union all
+select city_name, total_repeated_passengers, total_passengers, RPR, concat('Top- ',dsc_rank) as rank_category from main_table where dsc_rank <= 2;
 
 
+-- Similarly, analyse the RPR% by month across all cities and identify the months with the highest and lowest repeat passenger rates. This will help to pinpoint any seasonal patterns or months with higher repeat passenger loyalty.
+
+with main_table as (
+with total_passengers as (
+	select 
+		month_name,
+		sum(repeat_passengers) total_rp,
+        sum(total_passengers) total_p
+    from fact_passenger_summary fps
+    join dim_date dd on fps.month = dd.start_of_month
+    group by month_name
+)
+select
+	month_name,
+	total_rp as total_repeated_passengers,
+    total_p as total_passengers,
+	concat(round((total_rp/total_p)*100,2),"%") as RPR,
+    dense_rank() over(order by round((total_rp/total_p)*100,2) asc) as asc_rank,
+    dense_rank() over(order by round((total_rp/total_p)*100,2) desc) as dsc_rank
+from total_passengers
+)
+select month_name, total_repeated_passengers, total_passengers, RPR, "Lowest Month" as month_category from main_table where asc_rank = 1
+union all
+select month_name, total_repeated_passengers, total_passengers, RPR, "Highest Month" as month_category from main_table where dsc_rank = 1;
+
+
+
+--                                           ---------- ********** ----------
