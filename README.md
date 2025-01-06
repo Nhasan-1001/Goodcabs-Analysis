@@ -13,7 +13,6 @@ As part of the initiative from Previous slide, the Goodcabs management team aims
 - Passenger Satisfaction
 - Repeat Passenger Rate
 - Trip Distribution
-- Trip Distribution
 - Balance Between New and Repeat Passengers 
 
 As a curious Data Analyst of Goodcabs, I am responsible for Providing Insights to Chief of Operations in Transportation Domain of Goodcabs. To achieve that, I am performing in below tasks:
@@ -66,6 +65,8 @@ This Transportation and Mobility domain project is a resume based project challa
 **Data Modeling:** Power BI
 
 **Dashboard:** Power BI
+
+**Presentation:** MS PowerPoint
 
 
 ## About Me
