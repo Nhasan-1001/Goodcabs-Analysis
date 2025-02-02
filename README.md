@@ -6,7 +6,7 @@
 
 Goodcabs is a cab service company established in the years 2022, has gained a strong foothold in the Indian market by focusing on tier-2 cities. Unlike other cab service providers, Goodcabs is committed to supporting local drivers, helping them make a sustainable living in their hometowns while ensuring excellent service to passengers. With operations in ten tier-2 cities across India, Goodcabs has set ambitious performance targets for 2024 to drive growth and improve passenger satisfaction. 
 
-As part of the initiative from Previous slide, the Goodcabs management team aims to assess the company’s performance across:
+As part of the initiative, Goodcabs management team aims to assess the company’s performance across:
 
 - Key Metrics
 - Trip Volume
